@@ -8,6 +8,13 @@ function requestQueue( params ) {
 	const superagentEnd = this.end;
 
 	function setupOptions( params ) {
+		if ( params && params.backoff && params.backoff.override ) {
+			console.warn( '"backoff.override" is deprecated.' +
+				'Will be removed in future versions.'
+				'Please use "backoff.compute"' );
+			params.compute = params.override;
+		}
+
 		const defaultOptions = {
 			initialTimeout: 2000,
 			backoff: {
@@ -15,12 +22,14 @@ function requestQueue( params ) {
 					factor: 1.4
 				},
 				retries: 5,
-				override: _computeWaitPeriod
+				compute: _computeWaitPeriod
 			}
 		};
 
 		return defaultsDeep( defaultOptions, params );
 	}
+
+
 
 	const options = this.options = setupOptions(params);
 	const queue = this.queue =
@@ -65,12 +74,6 @@ function requestQueue( params ) {
 		}
 	}
 
-	function _handleConnectionError( connectionErrorHandler, err ) {
-		if ( connectionErrorHandler ) {
-			connectionErrorHandler( err );
-		}
-	}
-
 	function _sendNextRequest( request ) {
 
 		const next = request.queue[0];
@@ -86,19 +89,32 @@ function requestQueue( params ) {
 
 			if ( retry.should( err, res ) ) {
 
-				_handleConnectionError( request.connectionErrorHandler, err );
+				function doRetry( err ) {
+					if ( err ) {
+						// TODO: What to do here?
+						throw err;
+					} else {
+						if ( retryCount !== options.backoff.retries ) {
+							retryCount++;
+						}
 
-				if ( retryCount !== options.backoff.retries ) {
-					retryCount++;
+						const retryWaitPeriod = options.backoff
+							.compute.call( request, retryCount );
+
+						setTimeout( () => {
+							_resetRequest( request, timeout );
+							_sendRequest( request, fn, request._timeout );
+						}, retryWaitPeriod );
+					}
 				}
 
-				const retryWaitPeriod = options.backoff
-					.override.call( request, retryCount );
+				const errorHandler = request.connectionErrorHandler;
+				if ( errorHandler ) {
+					errorHandler( doRetry );
+				} else {
+					doRetry();
+				}
 
-				setTimeout( () => {
-					_resetRequest( request, timeout );
-					_sendRequest( request, fn, request._timeout );
-				}, retryWaitPeriod );
 			} else {
 				retryCount = 0;
 
