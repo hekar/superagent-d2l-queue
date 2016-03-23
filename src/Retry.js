@@ -7,6 +7,10 @@ function econnreset( err, res ) {
 	return err && err.code === 'ECONNRESET';
 }
 
+function econnrefused( err, res ) {
+	return err && err.code === 'ECONNREFUSED';
+}
+
 function etimedout( err, res ) {
 	return err && err.code === 'ETIMEDOUT';
 }
@@ -37,6 +41,7 @@ function cors( err, res ) {
 
 const retryChecks = [
 	econnreset,
+	econnrefused,
 	etimedout,
 	eaddrinfo,
 	esockettimedout,

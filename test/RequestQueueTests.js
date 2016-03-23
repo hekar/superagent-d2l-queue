@@ -57,7 +57,6 @@ describe( 'RequestQueue', function() {
 							.use( superagentQueue() )
 							.retryOnConnectionFailure( handler );
 
-			 request.retryEnabled.should.be.true;
 			 request.connectionErrorHandler.should.equal( handler );
 		});
 
@@ -77,7 +76,7 @@ describe( 'RequestQueue', function() {
 			retryRequests = 0;
 		})
 
-		it( 'no queue, 3 concurrent succesfull requests ', function( done ) {
+		it( 'no queue, 3 concurrent successful requests ', function( done ) {
 
 			this.timeout( 10000 );
 
@@ -119,6 +118,7 @@ describe( 'RequestQueue', function() {
 			var concurrencyChecker = getConcurrencyChecker( 1 );
 
 			const queue = superagentQueue.makeQueue();
+
 			superagent
 				.get( 'http://localhost:5000/successWithDelay' )
 				.use( superagentQueue( { queue } ) )
