@@ -1,23 +1,30 @@
 'use strict';
 
 const retry = require( './Retry' );
+const defaultsDeep = require('lodash.defaultsdeep');
 
 function requestQueue( params ) {
 
 	const superagentEnd = this.end;
-	const options = Object.assign( {
-		queue: undefined, // Array
-		initialTimeout: 2000,
-		backoff: {
-			exp: {
-				factor: 1.4
-			},
-			retries: 5,
-			override: _computeWaitPeriod
-		}
-	}, params );
 
-	this.queue = options.queue;
+	function setupOptions( params ) {
+		const defaultOptions = {
+			initialTimeout: 2000,
+			backoff: {
+				exp: {
+					factor: 1.4
+				},
+				retries: 5,
+				override: _computeWaitPeriod
+			}
+		};
+
+		return defaultsDeep( defaultOptions, params );
+	}
+
+	const options = this.options = setupOptions(params);
+	const queue = this.queue =
+		( ( params ) ? params.queue : undefined );
 
 	let retryCount = 0;
 
@@ -64,11 +71,11 @@ function requestQueue( params ) {
 		}
 	}
 
-	function _sendNextRequest() {
+	function _sendNextRequest( request ) {
 
-		const item = this.queue[0];
-		if ( item ) {
-			_sendRequest( item.request, item.fn, item.timeout );
+		const next = request.queue[0];
+		if ( next ) {
+			_sendRequest( next.request, next.fn, next.timeout );
 		}
 
 	}
@@ -77,17 +84,18 @@ function requestQueue( params ) {
 
 		superagentEnd.call( request, ( err, res ) => {
 
-			if ( request.retryEnabled && retry.should( err, res ) ) {
+			if ( retry.should( err, res ) ) {
 
 				_handleConnectionError( request.connectionErrorHandler, err );
 
 				if ( retryCount !== options.backoff.retries ) {
-					retryCount = retryCount + 1;
+					retryCount++;
 				}
 
-				let retryWaitPeriod = options.backoff.override( retryCount );
+				const retryWaitPeriod = options.backoff
+					.override.call( request, retryCount );
 
-				setTimeout( function() {
+				setTimeout( () => {
 					_resetRequest( request, timeout );
 					_sendRequest( request, fn, request._timeout );
 				}, retryWaitPeriod );
@@ -98,7 +106,7 @@ function requestQueue( params ) {
 
 				if ( request.queue ) {
 					request.queue.shift();
-					_sendNextRequest.call( request );
+					_sendNextRequest( request );
 				}
 			}
 
@@ -107,7 +115,6 @@ function requestQueue( params ) {
 	}
 
 	this.retryOnConnectionFailure = function( connectionErrorHandler ) {
-		this.retryEnabled = true;
 		this.connectionErrorHandler = connectionErrorHandler;
 		return this;
 	};
@@ -125,7 +132,7 @@ function requestQueue( params ) {
 			);
 
 			if ( this.queue.length === 1 ) {
-				_sendNextRequest.call(this);
+				_sendNextRequest( this );
 			}
 		} else {
 			_sendRequest( this, fn, this._timeout );
@@ -136,9 +143,9 @@ function requestQueue( params ) {
 	return this;
 }
 
-function create(params) {
-	return function(request) {
-		return requestQueue.call(request, params);
+function create( params ) {
+	return function( request ) {
+		return requestQueue.call( request, params );
 	};
 };
 
