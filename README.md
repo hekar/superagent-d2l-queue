@@ -17,7 +17,7 @@ npm install superagent-d2l-queue --save
 
 ## Usage
 
-###### superagentQueue(options)
+##### superagentQueue(options)
 
 ```js
 const request = require( 'superagent' );
@@ -33,8 +33,6 @@ request
     });
 ```
 
-###### Options
-
 All parameters are optional. Defaults are below.
 ```js
 queue: undefined, // use `superagentQueue.makeQueue()``
@@ -44,14 +42,14 @@ backoff: {
         factor: 1.4 //  (1.4 ^ retryCount)
     },
     retries: 5, // Number of retries
-    override: function( retryCount ) { // Compute the time between each retry interval.
+    compute: function( retryCount ) { // Compute the time between each retry interval.
         return Math.round( initialTimeout *
             Math.pow( backoff.exp.factor, retryCount ) );
     }
 }
 ```
 
-### `superagentQueue( { queue: superagentQueue.makeQueue() } )`
+###### Using Queues
 Specify an Array that will be used as a queue to chain multiple Superagent requests. Only one request will execute at a time. This is similar to what can be done with libraries such as [Q](https://github.com/kriskowal/q).
 
 ```js
@@ -86,7 +84,7 @@ const third = request
 // etc...
 ```
 
-### `retryOnConnectionFailure( handler )`
+###### `superagent.retryOnConnectionFailure( handler )``
 
 When a request fails due to a timeout or connection failure the request will be retried every 2 seconds until it can successfully send the request. A handler function can be specified in order to complete some action whenever a timeout occurs. This handler is optional.
 
